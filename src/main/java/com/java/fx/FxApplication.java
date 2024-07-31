@@ -17,24 +17,21 @@ public class FxApplication extends  Application{
 	private static ApplicationContext springContext;
 
 	public static void main(String[] args) {
-
-		springContext = SpringApplication.run(FxApplication.class, args);
+		FxApplication.springContext = SpringApplication.run(FxApplication.class, args);
 		launch();
-
-
 	}
 
 	@Override
 	public void start(Stage stage) throws Exception {
-
 		FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("/Main.fxml"));
 		fxmlLoader.setControllerFactory(springContext::getBean);
 
 		Scene scene = new Scene(fxmlLoader.load());
+
 		stage.setScene(scene);
 
-		String title = springContext.getBean("title", String.class);
-		stage.setTitle(title);
+
+		stage.setTitle("Descargador de videos serial");
 
 		stage.show();
 	}
