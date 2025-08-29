@@ -1,158 +1,141 @@
 package com.java.fx;
 
-import com.sapher.youtubedl.YoutubeDL;
-import com.sapher.youtubedl.YoutubeDLRequest;
-import com.sapher.youtubedl.YoutubeDLResponse;
+import com.java.fx.utils.FFmpegUtil;
+import com.java.fx.utils.YtDlpUtil;
+import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
-import javafx.scene.control.Button;
-import javafx.scene.control.ComboBox;
-import javafx.scene.control.Label;
-import javafx.scene.control.TextField;
+import javafx.scene.control.*;
 import javafx.scene.layout.AnchorPane;
-import org.springframework.stereotype.Component;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.net.URL;
-import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.util.ResourceBundle;
 
-@Component
-public class controller implements Initializable, Runnable {
+public class Controller implements Initializable {
 
     @FXML
     private AnchorPane anchorPane;
+
     @FXML
     private TextField txtLink;
+
+    @FXML
+    private Label lblEstado;
+
     @FXML
     private Button btnDownloader;
+
     @FXML
     private Label lblLink;
 
     @FXML
     private Label lblLink2;
-    @FXML
-    private ComboBox comboBox;
 
     @FXML
-    public void download() {
-        String videoUrl = this.txtLink.getText();
-        String format = this.comboBox.getValue().toString();
-        // Asegúrate de extraer youtube-dl antes de iniciar la descarga
-        String youtubeDlPath = extractYoutubeDlExecutable();
-        // Extrae el ejecutable ffmpeg
-        String ffmpegPath = FFmpegUtil.extractFFmpegExecutable();
-        Thread thread = new Thread(new DownloadTask(videoUrl, youtubeDlPath, ffmpegPath, format));
-        thread.start();
-    }
+    private ComboBox<String> comboBox;
 
-    private String extractYoutubeDlExecutable() {
-        try {
-            String resourcePath = "/youtube-dl/youtube-dl.exe";
-            InputStream inputStream = getClass().getResourceAsStream(resourcePath);
-
-            if (inputStream == null) {
-                throw new RuntimeException("No se pudo encontrar el recurso: " + resourcePath);
-            }
-
-            String tempDir = System.getProperty("java.io.tmpdir");
-            java.nio.file.Path tempFilePath = Paths.get(tempDir, "youtube-dl.exe");
-
-            Files.copy(inputStream, tempFilePath, StandardCopyOption.REPLACE_EXISTING);
-            tempFilePath.toFile().setExecutable(true);
-
-            if (Files.exists(tempFilePath)) {
-                System.out.println("Archivo youtube-dl extraído correctamente a: " + tempFilePath.toString());
-            } else {
-                throw new RuntimeException("Error al extraer el archivo youtube-dl.");
-            }
-
-            return tempFilePath.toString();
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to extract youtube-dl executable", e);
-        }
-    }
-
-    @Override
-    public void run() {
-        // Este método puede estar vacío porque estamos usando una clase separada para la descarga
-    }
-
-    ObservableList<String> formatList= FXCollections.observableArrayList("mp4","mp3","wav");
+    ObservableList<String> formatList = FXCollections.observableArrayList("mp4", "mp3", "wav");
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
-        this.comboBox.setValue("mp4");
-        this.comboBox.setItems(formatList);
+        comboBox.setValue("mp4");
+        comboBox.setItems(formatList);
+    }
+
+    @FXML
+    public void download() {
+        String videoUrl = txtLink.getText();
+        String format = comboBox.getValue();
+
+        String ytDlpPath = YtDlpUtil.extractYtDlpExecutable(); // ✅
+        String ffmpegPath = FFmpegUtil.extractFFmpegExecutable();
+
+        Thread thread = new Thread(new DownloadTask(videoUrl, ytDlpPath, ffmpegPath, format));
+        thread.start();
     }
 
     private class DownloadTask implements Runnable {
 
+        private final String videoUrl;
+        private final String ytDlpPath;
+        private final String ffmpegPath;
+        private final String format;
 
-        private String videoUrl;
-        private String youtubeDlPath;
-        private String ffmpegPath;
-        private String format;
-
-        public DownloadTask(String videoUrl, String youtubeDlPath, String ffmpegPath, String format) {
+        public DownloadTask(String videoUrl, String ytDlpPath, String ffmpegPath, String format) {
             this.videoUrl = videoUrl;
-            this.youtubeDlPath = youtubeDlPath;
+            this.ytDlpPath = ytDlpPath;
             this.ffmpegPath = ffmpegPath;
             this.format = format;
         }
 
         @Override
         public void run() {
-            // Directorio de descarga según el formato
             String userHome = System.getProperty("user.home");
-            String downloadDir;
-            if ("mp4".equals(format)) {
-                downloadDir = Paths.get(userHome, "Videos", "Videos descargados").toString();
-            } else {
-                downloadDir = Paths.get(userHome, "Music", "Musica descargada").toString();
+            String downloadDir = "mp4".equals(format)
+                    ? Paths.get(userHome, "Videos", "Videos descargados").toString()
+                    : Paths.get(userHome, "Music", "Musica descargada").toString();
+
+            File dir = new File(downloadDir);
+            if (!dir.exists() && !dir.mkdirs()) {
+                System.err.println("No se pudo crear el directorio: " + downloadDir);
+                Platform.runLater(() -> lblEstado.setText("❌ Error al crear el directorio de descarga."));
+                return;
             }
 
-            // Crear el directorio si no existe
-            File dir = new File(downloadDir);
-            if (!dir.exists()) {
-                boolean result = dir.mkdirs();
-                if (!result) {
-                    System.err.println("No se pudo crear el directorio: " + downloadDir);
-                    return;
-                }
-            }
+            Platform.runLater(() -> lblEstado.setText("⏳ Descargando..."));
 
             try {
-                // Configurar youtube-dl
-                YoutubeDL.setExecutablePath(youtubeDlPath);
+                ProcessBuilder builder = new ProcessBuilder();
 
-                YoutubeDLRequest request = new YoutubeDLRequest(videoUrl, downloadDir);
-                request.setOption("ignore-errors");
-                request.setOption("output", "%(title)s.%(ext)s");
-                request.setOption("retries", 10);
-
-                // Establecer la opción de formato si es necesario
-                if ("mp3".equals(format)) {
-                    request.setOption("format", "bestaudio[ext=m4a]");
-                    // Puedes configurar otros parámetros para audio si es necesario
-                } else if ("wav".equals(format)) {
-                    request.setOption("format", "bestaudio[ext=m4a]");
-                    // Puedes configurar otros parámetros para audio si es necesario
+                if ("mp4".equalsIgnoreCase(format)) {
+                    builder.command(
+                            ytDlpPath,
+                            "--ffmpeg-location", ffmpegPath,
+                            "-o", "%(title)s.%(ext)s",
+                            "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best",
+                            "--merge-output-format", "mp4",
+                            "--no-playlist",
+                            videoUrl
+                    );
+                } else {
+                    builder.command(
+                            ytDlpPath,
+                            "--ffmpeg-location", ffmpegPath,
+                            "-o", "%(title)s.%(ext)s",
+                            "--extract-audio",
+                            "--audio-format", format,
+                            "--no-playlist",
+                            videoUrl
+                    );
                 }
 
-                // Ejecutar la solicitud
-                YoutubeDLResponse response = YoutubeDL.execute(request);
+                builder.directory(new File(downloadDir));
+                builder.redirectErrorStream(true);
 
-                String stdOut = response.getOut();
-                System.out.println(stdOut);
-            } catch (Exception e) {
+                Process process = builder.start();
+
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        System.out.println(line);
+                    }
+                }
+
+                int exitCode = process.waitFor();
+
+                if (exitCode == 0) {
+                    Platform.runLater(() -> lblEstado.setText("✅ Descarga completada con éxito."));
+                } else {
+                    Platform.runLater(() -> lblEstado.setText("❌ Error: yt-dlp finalizó con código " + exitCode));
+                }
+
+            } catch (IOException | InterruptedException e) {
                 e.printStackTrace();
+                Platform.runLater(() -> lblEstado.setText("❌ Error durante la descarga."));
             }
         }
     }
