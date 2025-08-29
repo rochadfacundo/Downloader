@@ -1,19 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <actions>
-        <action>
-            <actionName>run</actionName>
-            <packagings>
-                <packaging>jar</packaging>
-            </packagings>
-            <goals>
-                <goal>javafx:run</goal>
-            </goals>
-            <properties>
-                <exec.vmArgs></exec.vmArgs>
-                <exec.args>${exec.vmArgs} -classpath %classpath ${exec.mainClass} ${exec.appArgs}</exec.args>
-                <exec.appArgs></exec.appArgs>
-                <exec.mainClass>${packageClassName}</exec.mainClass>
-                <exec.executable>java</exec.executable>
-            </properties>
-        </action>
-    </actions>
+    <action>
+        <actionName>run</actionName>
+        <packagings>
+            <packaging>jar</packaging>
+        </packagings>
+        <goals>
+            <goal>javafx:run</goal>
+        </goals>
+        <properties>
+            <!-- Ruta a tu SDK JavaFX descargado -->
+            <exec.vmArgs>
+                --module-path "C:\Users\USUARIO\Downloads\javafx-sdk-21.0.7\lib" --add-modules javafx.controls,javafx.fxml
+            </exec.vmArgs>
+            <exec.args>${exec.vmArgs} -classpath %classpath ${exec.mainClass} ${exec.appArgs}</exec.args>
+            <exec.appArgs></exec.appArgs>
+            <exec.mainClass>${packageClassName}</exec.mainClass>
+            <exec.executable>java</exec.executable>
+        </properties>
+    </action>
+</actions>

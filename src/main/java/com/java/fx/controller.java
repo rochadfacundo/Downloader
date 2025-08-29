@@ -1,7 +1,6 @@
 package com.java.fx;
 
-import com.java.fx.utils.FFmpegUtil;
-import com.java.fx.utils.YtDlpUtil;
+
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -15,7 +14,7 @@ import java.net.URL;
 import java.nio.file.Paths;
 import java.util.ResourceBundle;
 
-public class Controller implements Initializable {
+public class controller implements Initializable {
 
     @FXML
     private AnchorPane anchorPane;
